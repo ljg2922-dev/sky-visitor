@@ -220,10 +220,12 @@
 
 <script>
   // ===== 여기에 Apps Script 웹앱 주소(/exec로 끝나는 주소)를 넣으세요 =====
-  const API_URL = 'https://script.google.com/macros/s/AKfycbzsvxk8705_u_ecuyND2_NMwu_kKwPFFvtqLsj2ZnI6OsPphDqCNIxzhGq-6Fw38xXQ/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbx0gCcrqbHouzdgwVWRwtk-1qWgb6RPIWtqYyUvxclnaW0AJK0lTVKrHlsGO2mc_bsM/exec';
   // =====================================================================
 
   const $ = id => document.getElementById(id);
+  // 학년별 학급 수 (1~6학년). 구글 설정값을 받으면 그 값으로 바뀝니다.
+  let CLASS_COUNTS = [9, 9, 9, 9, 9, 8];
 
   // Apps Script와 주고받기 (text/plain으로 보내야 브라우저 사전검사 없이 전송됩니다)
   async function api(action, data) {
@@ -254,7 +256,8 @@
         lb.append(ip, sp); $('types').appendChild(lb);
       });
       for (let i = 1; i <= 6; i++) $('grade').add(new Option(i + '학년', i));
-      for (let i = 1; i <= cfg.maxClass; i++) $('cls').add(new Option(i + '반', i));
+      if (Array.isArray(cfg.classCounts) && cfg.classCounts.length === 6) CLASS_COUNTS = cfg.classCounts;
+      fillClasses();
       $('loading').classList.add('hidden');
       $('main').classList.remove('hidden');
       refreshReopen();
@@ -287,6 +290,20 @@
     const r = document.querySelector('input[name=vtype]:checked');
     return r ? r.value : '';
   }
+
+  // ---------- 학년별 반 목록 ----------
+  function fillClasses() {
+    const g = parseInt($('grade').value, 10);
+    const sel = $('cls');
+    sel.length = 1; // '반' 안내 항목만 남김
+    if (g >= 1 && g <= CLASS_COUNTS.length) {
+      for (let i = 1; i <= CLASS_COUNTS[g - 1]; i++) sel.add(new Option(i + '반', i));
+      sel.disabled = false;
+    } else {
+      sel.disabled = true;
+    }
+  }
+  $('grade').addEventListener('change', fillClasses);
 
   function toggleTypeBoxes() {
     const t = selectedType();
@@ -555,7 +572,7 @@
     clearInterval(clockTimer);
     closeSave();
     $('formIn').reset(); $('formOut').reset();
-    toggleTypeBoxes(); toggleEtc();
+    toggleTypeBoxes(); toggleEtc(); fillClasses();
     $('btnIn').disabled = false; $('btnIn').textContent = '입실 등록';
     $('btnOut').disabled = false; $('btnOut').textContent = '퇴실 등록';
     $('msgIn').textContent = ''; $('msgOut').textContent = '';
