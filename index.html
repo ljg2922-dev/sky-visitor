@@ -70,7 +70,8 @@
   .live b { font-size:28px; color:var(--text); font-variant-numeric:tabular-nums; }
   .dot { width:12px; height:12px; border-radius:50%; background:var(--err); animation:pulse 1s infinite; }
   @keyframes pulse { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.6); opacity:.35; } }
-  .pass-hint { margin:14px 0 0; font-size:15px; font-weight:700; color:var(--text); }
+  .pass-exit { margin:16px 0 0; padding:12px 14px; border-radius:12px; background:#fdecea; color:#b3261e; font-size:16px; font-weight:700; line-height:1.5; word-break:keep-all; }
+  .pass-hint { margin:14px 0 0; font-size:15px; font-weight:700; color:var(--text); word-break:keep-all; }
   .pass-foot { text-align:center; padding:0 20px 20px; }
   .link { border:0; background:none; color:var(--muted); text-decoration:underline; font-size:14px; padding:8px; cursor:pointer; font-family:inherit; }
   .save-btn { width:100%; padding:14px; font-size:16px; font-weight:700; border:1px solid var(--main); border-radius:12px; background:#fff; color:var(--main); cursor:pointer; font-family:inherit; margin-bottom:6px; }
@@ -149,7 +150,7 @@
         <b>개인정보 수집·이용 안내</b><br>
         · 수집 항목: 방문자 유형, 이름, 연락처, 소속, (학부모) 자녀 학년·반·이름, 방문 목적, 출입 시간<br>
         · 이용 목적: 학생 안전 및 학교 출입 관리<br>
-        · 보유 기간: 방문일로부터 <span id="retention"></span>일 후 자동 파기<br>
+        · 보유 기간: 방문일로부터 <span id="retention">3년</span> 후 자동 파기<br>
         · 동의를 거부할 수 있으나, 거부 시 학교 출입이 제한될 수 있습니다.
       </div>
       <label class="check"><input type="checkbox" id="consent"> 위 내용에 동의합니다</label>
@@ -184,6 +185,7 @@
         <dt>입실 시각</dt><dd id="pIn"></dd>
       </dl>
       <div class="live"><span class="dot"></span>현재 시각 <b id="pClock">--:--:--</b></div>
+      <p class="pass-exit">🚪 나가실 때 꼭 <b>QR코드를 찍어 퇴실 등록</b>을 해 주세요.</p>
       <p class="pass-hint">👮 배움터지킴이 선생님께 이 화면을 보여 주세요.</p>
     </div>
     <div class="pass-foot">
@@ -209,13 +211,14 @@
     <div class="title">퇴실 등록 완료</div>
     <div class="time" id="doneTime"></div>
     <p class="note">방문해 주셔서 감사합니다. 안녕히 가세요.</p>
+    <p class="pass-hint">👮 이 화면을 배움터지킴이 선생님께 보여 주세요.</p>
     <button class="submit" onclick="resetAll()">처음으로</button>
   </div>
 </div>
 
 <script>
   // ===== 여기에 Apps Script 웹앱 주소(/exec로 끝나는 주소)를 넣으세요 =====
-  const API_URL = 'https://script.google.com/macros/s/AKfycbxtha5CFXBS4FliVTtuyx__oVvvCimohFzIW-jJUHyvuzrqjEaxuiwT0fcBJNMw3IVw/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbzarG-uW60tbtbi_0kIKN3THBaiTxkeFZcyKcYwfhgVE4gldEGpLsyIDPCwCYp8CXRi/exec';
   // =====================================================================
 
   const $ = id => document.getElementById(id);
@@ -239,7 +242,7 @@
       const j = await res.json();
       if (!j.ok) throw new Error(j.error);
       const cfg = j.result;
-      $('retention').textContent = cfg.retentionDays;
+      $('retention').textContent = cfg.retentionText || '3년';
       cfg.visitorTypes.forEach(t => {
         const lb = document.createElement('label');
         const ip = document.createElement('input');
@@ -406,7 +409,7 @@
 
   // 확인증을 그림(PNG)으로 그리기
   function drawPass(r) {
-    const W = 720, H = 1080;
+    const W = 720, H = 1180;
     const c = document.createElement('canvas');
     c.width = W; c.height = H;
     const ctx = c.getContext('2d');
@@ -455,6 +458,10 @@
       ls.forEach((l, i) => ctx.fillText(l, 260, ry + i * lineH));
       ry += ls.length * lineH + 12;
     });
+
+    // 퇴실 안내
+    ctx.textAlign = 'center'; ctx.fillStyle = '#b3261e'; ctx.font = '800 28px ' + FONT;
+    ctx.fillText('나가실 때 꼭 QR코드로 퇴실 등록을 해 주세요.', W / 2, y + boxH + 64);
 
     // 보관용 표시 (출입 확인용 실시간 화면과 구분)
     ctx.save();
