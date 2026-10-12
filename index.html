@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>인천하늘초등학교 방문객 출입기록</title>
+<style>
+  :root { --main:#2f6fde; --bg:#f4f7fb; --text:#1d2433; --muted:#6b7280; --err:#d93025; --ok:#188038; --line:#cfd6e0; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif; background:var(--bg); color:var(--text); }
+  .wrap { max-width:480px; margin:0 auto; padding:20px 16px 40px; }
+  h1 { font-size:22px; margin:8px 0 4px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 16px; }
+  .reopen { width:100%; padding:12px; margin-bottom:14px; border:1px dashed var(--main); background:#eaf1fe; color:var(--main); font-weight:700; font-size:15px; border-radius:12px; cursor:pointer; font-family:inherit; }
+  .tabs { display:flex; background:#e3e8f0; border-radius:12px; padding:4px; margin-bottom:16px; }
+  .tab { flex:1; border:0; background:none; padding:12px; font-size:16px; font-weight:700; border-radius:9px; color:var(--muted); cursor:pointer; font-family:inherit; }
+  .tab.on { background:#fff; color:var(--main); box-shadow:0 1px 3px rgba(0,0,0,.1); }
+  .card { background:#fff; border-radius:14px; padding:20px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  .f { display:block; font-weight:700; margin:16px 0 6px; font-size:15px; }
+  .f:first-child { margin-top:0; }
+  input[type=text], input[type=tel], select { width:100%; padding:13px; font-size:16px; border:1px solid var(--line); border-radius:10px; background:#fff; font-family:inherit; color:var(--text); }
+  input:focus, select:focus { outline:2px solid var(--main); border-color:transparent; }
+
+  /* 방문자 유형 선택 버튼 */
+  .types { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .types label { position:relative; cursor:pointer; }
+  .types input { position:absolute; opacity:0; }
+  .types span { display:flex; align-items:center; justify-content:center; min-height:48px; padding:8px; border:1px solid var(--line); border-radius:10px; text-align:center; font-size:14px; font-weight:600; line-height:1.3; }
+  .types input:checked + span { border:2px solid var(--main); background:#eaf1fe; color:var(--main); }
+  .types input:focus-visible + span { outline:2px solid var(--main); }
+
+  .sub-box { background:#f7f9fc; border-radius:10px; padding:12px 14px 14px; margin-top:10px; }
+  .sub-box .f { margin-top:10px; }
+  .row { display:flex; gap:8px; }
+  .row > * { flex:1; }
+
+  .consent { background:#f7f9fc; border-radius:10px; padding:12px 14px; font-size:13px; color:#444; line-height:1.7; margin-top:18px; }
+  .consent b { color:var(--text); }
+  .check { display:flex; gap:8px; align-items:center; margin-top:10px; font-weight:700; font-size:15px; }
+  .check input { width:20px; height:20px; }
+  .submit { width:100%; margin-top:20px; padding:15px; font-size:17px; font-weight:700; border:0; border-radius:12px; background:var(--main); color:#fff; cursor:pointer; font-family:inherit; }
+  .submit:disabled { opacity:.5; }
+  .msg { color:var(--err); font-size:14px; margin-top:12px; min-height:20px; }
+  .hidden { display:none !important; }
+  .loading { text-align:center; color:var(--muted); padding:60px 20px; font-size:16px; }
+
+  /* 퇴실 완료 */
+  .done { text-align:center; padding:32px 20px; }
+  .done .icon { font-size:48px; }
+  .done .title { font-size:24px; font-weight:800; color:var(--ok); margin:8px 0; }
+  .done .time { font-size:18px; margin:6px 0 4px; }
+  .done .note { color:var(--muted); font-size:14px; }
+
+  /* 방문 확인증 */
+  .pass { background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 4px 18px rgba(0,0,0,.12); }
+  .pass-head { color:#fff; text-align:center; padding:20px 16px 18px; background:var(--main); }
+  .pass-school { font-size:15px; opacity:.9; }
+  .pass-title { font-size:30px; font-weight:900; letter-spacing:2px; margin:4px 0; }
+  .pass-date { font-size:16px; font-weight:700; }
+  .pass-body { padding:20px; text-align:center; }
+  .pass-no { display:inline-block; font-size:15px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:4px 14px; }
+  .pass-no b { color:var(--text); font-size:17px; }
+  .pass-name { font-size:34px; font-weight:900; margin:14px 0 6px; }
+  .badge { display:inline-block; padding:6px 14px; border-radius:999px; font-weight:800; font-size:15px; color:#fff; }
+  .pass-extra { font-size:18px; font-weight:700; margin-top:10px; }
+  .pass dl { display:grid; grid-template-columns:auto 1fr; gap:8px 14px; text-align:left; margin:18px 0 0; padding:14px 16px; background:#f7f9fc; border-radius:12px; font-size:16px; }
+  .pass dt { color:var(--muted); }
+  .pass dd { margin:0; font-weight:700; word-break:keep-all; }
+  .live { margin-top:18px; font-size:15px; color:var(--muted); display:flex; align-items:center; justify-content:center; gap:8px; }
+  .live b { font-size:28px; color:var(--text); font-variant-numeric:tabular-nums; }
+  .dot { width:12px; height:12px; border-radius:50%; background:var(--err); animation:pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.6); opacity:.35; } }
+  .pass-hint { margin:14px 0 0; font-size:15px; font-weight:700; color:var(--text); }
+  .pass-foot { text-align:center; padding:0 20px 20px; }
+  .link { border:0; background:none; color:var(--muted); text-decoration:underline; font-size:14px; padding:8px; cursor:pointer; font-family:inherit; }
+  .save-btn { width:100%; padding:14px; font-size:16px; font-weight:700; border:1px solid var(--main); border-radius:12px; background:#fff; color:var(--main); cursor:pointer; font-family:inherit; margin-bottom:6px; }
+
+  /* 확인증 이미지 저장 창 */
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; padding:16px; z-index:10; }
+  .save-card { background:#fff; border-radius:16px; padding:18px; width:100%; max-width:400px; max-height:100%; overflow:auto; text-align:center; }
+  .save-card img { width:100%; border-radius:10px; border:1px solid var(--line); }
+  .save-card p { font-size:14px; color:#444; line-height:1.6; margin:12px 0 4px; }
+  .save-card a.submit { display:block; text-decoration:none; margin-top:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="loading" class="loading">불러오는 중…</div>
+
+  <div id="main" class="hidden">
+    <h1>인천하늘초등학교</h1>
+    <p class="sub">방문객 출입기록 · 학생 안전을 위해 협조 부탁드립니다.</p>
+
+    <button class="reopen hidden" id="reopen" onclick="reopenPass()">🎫 오늘 받은 방문 확인증 다시 보기</button>
+
+    <div class="tabs">
+      <button class="tab on" id="tabIn" onclick="showMode('in')">들어갈 때 (입실)</button>
+      <button class="tab" id="tabOut" onclick="showMode('out')">나갈 때 (퇴실)</button>
+    </div>
+
+    <!-- 입실 -->
+    <form id="formIn" class="card" onsubmit="submitIn(event)">
+      <span class="f">방문자 유형</span>
+      <div class="types" id="types">
+      </div>
+
+      <!-- 학부모: 학생 정보 -->
+      <div class="sub-box hidden" id="boxParent">
+        <span class="f">자녀(학생) 정보</span>
+        <div class="row">
+          <select id="grade" aria-label="학년">
+            <option value="">학년</option>
+          </select>
+          <select id="cls" aria-label="반">
+            <option value="">반</option>
+          </select>
+        </div>
+        <input type="text" id="student" maxlength="20" placeholder="학생 이름" style="margin-top:8px">
+      </div>
+
+      <!-- 사업자·외부강사: 소속 -->
+      <div class="sub-box hidden" id="boxOrg">
+        <label class="f" for="org">소속 (업체·기관명)</label>
+        <input type="text" id="org" maxlength="50" placeholder="예: ○○설비, ○○청소년센터">
+      </div>
+
+      <label class="f" for="name">방문자 이름</label>
+      <input type="text" id="name" maxlength="20" autocomplete="name">
+
+      <label class="f" for="phone">연락처</label>
+      <input type="tel" id="phone" inputmode="numeric" placeholder="010-1234-5678" maxlength="13">
+
+      <label class="f" for="purpose">방문 목적</label>
+      <select id="purpose" onchange="toggleEtc()">
+        <option value="">선택해 주세요</option>
+        <option>학부모 상담</option>
+        <option>자녀 하교·조퇴 인솔</option>
+        <option>서류 발급·행정 업무</option>
+        <option>민원 상담</option>
+        <option>물품 배송·납품</option>
+        <option>시설 점검·공사</option>
+        <option>학교 행사 참여</option>
+        <option>강사·외부 수업</option>
+        <option value="기타">기타 (직접 입력)</option>
+      </select>
+      <input type="text" id="purposeEtc" class="hidden" maxlength="100" placeholder="방문 목적을 적어 주세요" style="margin-top:8px">
+
+      <div class="consent">
+        <b>개인정보 수집·이용 안내</b><br>
+        · 수집 항목: 방문자 유형, 이름, 연락처, 소속, (학부모) 자녀 학년·반·이름, 방문 목적, 출입 시간<br>
+        · 이용 목적: 학생 안전 및 학교 출입 관리<br>
+        · 보유 기간: 방문일로부터 <span id="retention"></span>일 후 자동 파기<br>
+        · 동의를 거부할 수 있으나, 거부 시 학교 출입이 제한될 수 있습니다.
+      </div>
+      <label class="check"><input type="checkbox" id="consent"> 위 내용에 동의합니다</label>
+
+      <button class="submit" id="btnIn" type="submit">입실 등록</button>
+      <div class="msg" id="msgIn"></div>
+    </form>
+
+    <!-- 퇴실 -->
+    <form id="formOut" class="card hidden" onsubmit="submitOut(event)">
+      <label class="f" for="phoneOut">입실 때 입력한 연락처</label>
+      <input type="tel" id="phoneOut" inputmode="numeric" placeholder="010-1234-5678" maxlength="13">
+      <button class="submit" id="btnOut" type="submit">퇴실 등록</button>
+      <div class="msg" id="msgOut"></div>
+    </form>
+  </div>
+
+  <!-- 방문 확인증 (입실 완료 후) -->
+  <div id="pass" class="pass hidden">
+    <div class="pass-head" id="passHead">
+      <div class="pass-school">인천하늘초등학교</div>
+      <div class="pass-title">방문 확인증</div>
+      <div class="pass-date" id="pDate"></div>
+    </div>
+    <div class="pass-body">
+      <div class="pass-no">방문번호 <b id="pNo"></b></div>
+      <div class="pass-name" id="pName"></div>
+      <div class="badge" id="pType"></div>
+      <div class="pass-extra" id="pExtra"></div>
+      <dl>
+        <dt>방문 목적</dt><dd id="pPurpose"></dd>
+        <dt>입실 시각</dt><dd id="pIn"></dd>
+      </dl>
+      <div class="live"><span class="dot"></span>현재 시각 <b id="pClock">--:--:--</b></div>
+      <p class="pass-hint">👮 배움터지킴이 선생님께 이 화면을 보여 주세요.</p>
+    </div>
+    <div class="pass-foot">
+      <button class="save-btn" onclick="savePass()">📥 확인증 이미지로 저장하기</button>
+      <button class="link" onclick="resetAll()">처음 화면으로</button>
+    </div>
+  </div>
+
+  <!-- 확인증 이미지 저장 창 -->
+  <div id="saveBox" class="overlay hidden" onclick="if (event.target === this) closeSave()">
+    <div class="save-card">
+      <img id="saveImg" alt="방문 확인증 이미지">
+      <p>📱 휴대폰: 이미지를 <b>길게 눌러</b> '사진에 저장' 또는 '이미지 저장'을 선택하세요.<br>💻 컴퓨터: 아래 버튼을 누르세요.</p>
+      <a id="saveLink" class="submit">이미지 다운로드</a>
+      <button class="submit hidden" id="shareBtn" style="background:#fff;color:var(--main);border:1px solid var(--main);margin-top:8px" onclick="sharePass()">공유·저장하기</button>
+      <button class="link" onclick="closeSave()" style="margin-top:6px">닫기</button>
+    </div>
+  </div>
+
+  <!-- 퇴실 완료 -->
+  <div id="done" class="card done hidden">
+    <div class="icon">👋</div>
+    <div class="title">퇴실 등록 완료</div>
+    <div class="time" id="doneTime"></div>
+    <p class="note">방문해 주셔서 감사합니다. 안녕히 가세요.</p>
+    <button class="submit" onclick="resetAll()">처음으로</button>
+  </div>
+</div>
+
+<script>
+  // ===== 여기에 Apps Script 웹앱 주소(/exec로 끝나는 주소)를 넣으세요 =====
+  const API_URL = 'https://script.google.com/macros/s/AKfycbweduu6atTQSnVWfg_-XVNjcBvQPMo1LXzRmowLs374MbyJGi9um55L1c5uom9aoUpt/exec';
+  // =====================================================================
+
+  const $ = id => document.getElementById(id);
+
+  // Apps Script와 주고받기 (text/plain으로 보내야 브라우저 사전검사 없이 전송됩니다)
+  async function api(action, data) {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: action, data: data })
+    });
+    const j = await res.json();
+    if (!j.ok) throw new Error(j.error);
+    return j.result;
+  }
+
+  // 학교 설정 불러와 화면 채우기
+  async function init() {
+    try {
+      const res = await fetch(API_URL + '?api=config');
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error);
+      const cfg = j.result;
+      $('retention').textContent = cfg.retentionDays;
+      cfg.visitorTypes.forEach(t => {
+        const lb = document.createElement('label');
+        const ip = document.createElement('input');
+        ip.type = 'radio'; ip.name = 'vtype'; ip.value = t;
+        ip.addEventListener('change', toggleTypeBoxes);
+        const sp = document.createElement('span'); sp.textContent = t;
+        lb.append(ip, sp); $('types').appendChild(lb);
+      });
+      for (let i = 1; i <= 6; i++) $('grade').add(new Option(i + '학년', i));
+      for (let i = 1; i <= cfg.maxClass; i++) $('cls').add(new Option(i + '반', i));
+      $('loading').classList.add('hidden');
+      $('main').classList.remove('hidden');
+      refreshReopen();
+    } catch (e) {
+      $('loading').textContent = '화면을 불러오지 못했어요. 잠시 후 새로고침해 주세요.';
+    }
+  }
+  // 요일별 확인증 색 (일~토). 캡처 화면 재사용을 눈으로 구분하기 위함
+  const DAY_COLORS = ['#d93025', '#2f6fde', '#188038', '#e37400', '#8e24aa', '#00838f', '#c2185b'];
+  const PASS_KEY = 'visitPass';
+  let clockTimer = null;
+
+  function todayKey() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function store(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function load(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+
+  // ---------- 화면 전환 ----------
+  function showMode(mode) {
+    const isIn = mode === 'in';
+    $('formIn').classList.toggle('hidden', !isIn);
+    $('formOut').classList.toggle('hidden', isIn);
+    $('tabIn').classList.toggle('on', isIn);
+    $('tabOut').classList.toggle('on', !isIn);
+  }
+
+  function selectedType() {
+    const r = document.querySelector('input[name=vtype]:checked');
+    return r ? r.value : '';
+  }
+
+  function toggleTypeBoxes() {
+    const t = selectedType();
+    $('boxParent').classList.toggle('hidden', t !== '학부모');
+    $('boxOrg').classList.toggle('hidden', !(t.startsWith('사업자') || t.startsWith('외부강사')));
+  }
+
+  function toggleEtc() {
+    $('purposeEtc').classList.toggle('hidden', $('purpose').value !== '기타');
+  }
+
+  // 숫자만 입력해도 하이픈 자동 삽입
+  function autoHyphen(el) {
+    el.addEventListener('input', () => {
+      const d = el.value.replace(/\D/g, '').slice(0, 11);
+      el.value = d.length < 4 ? d
+        : d.length < 8 ? d.replace(/(\d{3})(\d+)/, '$1-$2')
+        : d.replace(/(\d{3})(\d{3,4})(\d{4})/, '$1-$2-$3');
+    });
+  }
+  autoHyphen($('phone'));
+  autoHyphen($('phoneOut'));
+
+  // ---------- 입실 ----------
+  function submitIn(e) {
+    e.preventDefault();
+    const msg = $('msgIn');
+    msg.textContent = '';
+    const type = selectedType();
+    const purpose = $('purpose').value === '기타' ? $('purposeEtc').value.trim() : $('purpose').value;
+
+    // 화면에서 먼저 빠진 항목 안내 (서버에서도 한 번 더 검사함)
+    if (!type) return msg.textContent = '방문자 유형을 선택해 주세요.';
+    if (type === '학부모' && (!$('grade').value || !$('cls').value || !$('student').value.trim()))
+      return msg.textContent = '자녀(학생)의 학년, 반, 이름을 입력해 주세요.';
+    if (!$('boxOrg').classList.contains('hidden') && !$('org').value.trim())
+      return msg.textContent = '소속(업체·기관명)을 입력해 주세요.';
+    if (!$('name').value.trim()) return msg.textContent = '방문자 이름을 입력해 주세요.';
+    if ($('phone').value.replace(/\D/g, '').length < 9) return msg.textContent = '연락처를 정확히 입력해 주세요.';
+    if (!purpose) return msg.textContent = '방문 목적을 선택해 주세요.';
+    if (!$('consent').checked) return msg.textContent = '개인정보 수집·이용에 동의해 주세요.';
+
+    $('btnIn').disabled = true; $('btnIn').textContent = '등록 중…';
+    api('checkIn', {
+        type: type, name: $('name').value, phone: $('phone').value, purpose: purpose,
+        grade: $('grade').value, cls: $('cls').value, student: $('student').value,
+        org: $('org').value, consent: true
+      })
+      .then(r => { store(PASS_KEY, r); showPass(r); })
+      .catch(err => fail('msgIn', 'btnIn', '입실 등록', err));
+  }
+
+  // 결과 화면이 보이도록 맨 위로 이동 (구글 사이트도구에 넣었을 때 바깥 페이지도 함께 스크롤)
+  function toTop(el) {
+    try { el.scrollIntoView({ block: 'start' }); } catch (e) { window.scrollTo(0, 0); }
+  }
+
+  // ---------- 방문 확인증 ----------
+  let currentPass = null;
+
+  function extraText(r) {
+    if (r.type === '학부모') return r.grade + '학년 ' + r.cls + '반 ' + r.student + ' 학부모';
+    return r.org || '';
+  }
+
+  function showPass(r) {
+    currentPass = r;
+    const color = DAY_COLORS[new Date().getDay()];
+    $('passHead').style.background = color;
+    $('pType').style.background = color;
+    $('pDate').textContent = r.dateText;
+    $('pNo').textContent = r.id;
+    $('pName').textContent = r.name;
+    $('pType').textContent = r.type;
+    $('pExtra').textContent = extraText(r);
+    $('pPurpose').textContent = r.purpose;
+    $('pIn').textContent = r.time;
+
+    $('main').classList.add('hidden');
+    $('done').classList.add('hidden');
+    $('pass').classList.remove('hidden');
+    toTop($('pass'));
+    startClock();
+  }
+
+  // 초 단위로 움직이는 시계: 캡처한 사진과 실제 화면을 구분하는 용도
+  function startClock() {
+    const tick = () => {
+      const d = new Date();
+      $('pClock').textContent = [d.getHours(), d.getMinutes(), d.getSeconds()].map(n => String(n).padStart(2, '0')).join(':');
+    };
+    tick();
+    clearInterval(clockTimer);
+    clockTimer = setInterval(tick, 1000);
+  }
+
+  // ---------- 확인증 이미지 저장 ----------
+  const FONT = '"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif';
+  let passBlob = null;
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function wrapText(ctx, text, maxW) {
+    const lines = []; let line = '';
+    for (const ch of String(text)) {
+      if (line && ctx.measureText(line + ch).width > maxW) { lines.push(line); line = ch; }
+      else line += ch;
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  function hhmm(d) { return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+
+  // 확인증을 그림(PNG)으로 그리기
+  function drawPass(r) {
+    const W = 720, H = 1080;
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const ctx = c.getContext('2d');
+    const color = DAY_COLORS[new Date().getDay()];
+    const school = document.querySelector('.pass-school').textContent.trim();
+
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+
+    // 머리 부분
+    ctx.fillStyle = color; ctx.fillRect(0, 0, W, 230);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#ffffff';
+    ctx.font = '600 28px ' + FONT; ctx.fillText(school, W / 2, 58);
+    ctx.font = '900 60px ' + FONT; ctx.fillText('방문 확인증', W / 2, 125);
+    ctx.font = '700 30px ' + FONT; ctx.fillText(r.dateText, W / 2, 192);
+
+    // 방문번호·이름·유형
+    ctx.fillStyle = '#6b7280'; ctx.font = '600 28px ' + FONT;
+    ctx.fillText('방문번호  ' + r.id, W / 2, 290);
+    ctx.fillStyle = '#1d2433'; ctx.font = '900 72px ' + FONT;
+    ctx.fillText(r.name, W / 2, 380);
+    ctx.font = '800 30px ' + FONT;
+    const bw = ctx.measureText(r.type).width + 56;
+    ctx.fillStyle = color; roundRect(ctx, (W - bw) / 2, 440, bw, 60, 30); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.fillText(r.type, W / 2, 471);
+
+    let y = 560;
+    const extra = extraText(r);
+    if (extra) {
+      ctx.fillStyle = '#1d2433'; ctx.font = '700 34px ' + FONT;
+      wrapText(ctx, extra, 600).forEach(l => { ctx.fillText(l, W / 2, y); y += 46; });
+      y += 14;
+    }
+
+    // 정보 상자
+    ctx.font = '700 30px ' + FONT;
+    const rows = [['방문 목적', r.purpose], ['입실 시각', r.time], ['저장 시각', hhmm(new Date())]]
+      .map(([k, v]) => [k, wrapText(ctx, v, 360)]);
+    const lineH = 44, pad = 28;
+    const boxH = pad * 2 + rows.reduce((s, [, ls]) => s + ls.length * lineH, 0) + (rows.length - 1) * 12;
+    ctx.fillStyle = '#f4f7fb'; roundRect(ctx, 60, y, 600, boxH, 20); ctx.fill();
+    ctx.textAlign = 'left';
+    let ry = y + pad + lineH / 2;
+    rows.forEach(([k, ls]) => {
+      ctx.fillStyle = '#6b7280'; ctx.font = '600 28px ' + FONT; ctx.fillText(k, 96, ry);
+      ctx.fillStyle = '#1d2433'; ctx.font = '700 30px ' + FONT;
+      ls.forEach((l, i) => ctx.fillText(l, 260, ry + i * lineH));
+      ry += ls.length * lineH + 12;
+    });
+
+    // 보관용 표시 (출입 확인용 실시간 화면과 구분)
+    ctx.save();
+    ctx.translate(W / 2, H / 2 + 60); ctx.rotate(-Math.PI / 7);
+    ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(29,36,51,0.06)';
+    ctx.font = '900 130px ' + FONT; ctx.fillText('보관용 사본', 0, 0);
+    ctx.restore();
+
+    ctx.textAlign = 'center'; ctx.fillStyle = '#6b7280'; ctx.font = '600 22px ' + FONT;
+    ctx.fillText('보관용 사본입니다.', W / 2, H - 82);
+    ctx.fillText('학교 출입 확인은 실시간 확인증 화면으로 해 주세요.', W / 2, H - 50);
+    ctx.fillStyle = color; ctx.fillRect(0, H - 14, W, 14);
+    return c;
+  }
+
+  function savePass() {
+    if (!currentPass) return;
+    const c = drawPass(currentPass);
+    const url = c.toDataURL('image/png');
+    $('saveImg').src = url;
+    $('saveLink').href = url;
+    $('saveLink').setAttribute('download', '방문확인증_' + currentPass.id + '.png');
+    $('saveBox').classList.remove('hidden');
+
+    // 휴대폰 공유 기능(사진 앱·카톡 등으로 저장)이 되는 기기에서만 버튼 표시
+    passBlob = null;
+    $('shareBtn').classList.add('hidden');
+    c.toBlob(b => {
+      passBlob = b;
+      try {
+        const f = new File([b], '방문확인증_' + currentPass.id + '.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [f] })) $('shareBtn').classList.remove('hidden');
+      } catch (e) {}
+    }, 'image/png');
+  }
+
+  function sharePass() {
+    if (!passBlob) return;
+    const f = new File([passBlob], '방문확인증_' + currentPass.id + '.png', { type: 'image/png' });
+    navigator.share({ files: [f], title: '방문 확인증' }).catch(() => {});
+  }
+
+  function closeSave() { $('saveBox').classList.add('hidden'); }
+
+  function reopenPass() {
+    const p = load(PASS_KEY);
+    if (p && p.dateKey === todayKey()) showPass(p);
+  }
+
+  // ---------- 퇴실 ----------
+  function submitOut(e) {
+    e.preventDefault();
+    $('msgOut').textContent = '';
+    if ($('phoneOut').value.replace(/\D/g, '').length < 9) { $('msgOut').textContent = '연락처를 정확히 입력해 주세요.'; return; }
+    $('btnOut').disabled = true; $('btnOut').textContent = '등록 중…';
+    api('checkOut', { phone: $('phoneOut').value })
+      .then(r => {
+        store(PASS_KEY, null);
+        $('doneTime').textContent = r.name + '님 · 퇴실 ' + r.time;
+        $('main').classList.add('hidden');
+        $('done').classList.remove('hidden');
+        toTop($('done'));
+      })
+      .catch(err => fail('msgOut', 'btnOut', '퇴실 등록', err));
+  }
+
+  function fail(msgId, btnId, label, err) {
+    const m = err && err.message;
+    $(msgId).textContent = (!m || /fetch|network|JSON/i.test(m)) ? '연결에 문제가 있어요. 잠시 후 다시 시도해 주세요.' : m;
+    $(btnId).disabled = false; $(btnId).textContent = label;
+  }
+
+  function resetAll() {
+    clearInterval(clockTimer);
+    closeSave();
+    $('formIn').reset(); $('formOut').reset();
+    toggleTypeBoxes(); toggleEtc();
+    $('btnIn').disabled = false; $('btnIn').textContent = '입실 등록';
+    $('btnOut').disabled = false; $('btnOut').textContent = '퇴실 등록';
+    $('msgIn').textContent = ''; $('msgOut').textContent = '';
+    $('pass').classList.add('hidden');
+    $('done').classList.add('hidden');
+    $('main').classList.remove('hidden');
+    showMode('in');
+    refreshReopen();
+  }
+
+  function refreshReopen() {
+    const p = load(PASS_KEY);
+    $('reopen').classList.toggle('hidden', !(p && p.dateKey === todayKey()));
+  }
+  init();
+</script>
+</body>
+</html>
