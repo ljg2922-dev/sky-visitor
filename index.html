@@ -56,7 +56,9 @@
   .pass-head { color:#fff; text-align:center; padding:20px 16px 18px; background:var(--main); }
   .pass-school { font-size:15px; opacity:.9; }
   .pass-title { font-size:30px; font-weight:900; letter-spacing:2px; margin:4px 0; }
-  .pass-date { font-size:16px; font-weight:700; }
+  .pass-date { display:inline-block; margin-top:12px; padding:8px 22px 10px; border-radius:14px; background:#ffe14d; color:#1d2433; box-shadow:0 2px 0 rgba(0,0,0,.15); }
+  .pass-date .yr { display:block; font-size:14px; font-weight:700; opacity:.75; }
+  .pass-date .md { display:block; font-size:34px; font-weight:900; letter-spacing:-.5px; line-height:1.15; }
   .pass-body { padding:20px; text-align:center; }
   .pass-no { display:inline-block; font-size:15px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:4px 14px; }
   .pass-no b { color:var(--text); font-size:17px; }
@@ -173,7 +175,7 @@
     <div class="pass-head" id="passHead">
       <div class="pass-school">인천하늘초등학교</div>
       <div class="pass-title">방문 확인증</div>
-      <div class="pass-date" id="pDate"></div>
+      <div class="pass-date" id="pDate"><span class="yr" id="pYear"></span><span class="md" id="pMD"></span></div>
     </div>
     <div class="pass-body">
       <div class="pass-no">방문번호 <b id="pNo"></b></div>
@@ -218,7 +220,7 @@
 
 <script>
   // ===== 여기에 Apps Script 웹앱 주소(/exec로 끝나는 주소)를 넣으세요 =====
-  const API_URL = 'https://script.google.com/macros/s/AKfycbzarG-uW60tbtbi_0kIKN3THBaiTxkeFZcyKcYwfhgVE4gldEGpLsyIDPCwCYp8CXRi/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbzsvxk8705_u_ecuyND2_NMwu_kKwPFFvtqLsj2ZnI6OsPphDqCNIxzhGq-6Fw38xXQ/exec';
   // =====================================================================
 
   const $ = id => document.getElementById(id);
@@ -345,6 +347,12 @@
   // ---------- 방문 확인증 ----------
   let currentPass = null;
 
+  // '2026년 10월 13일 (화)' → { year:'2026년', md:'10월 13일 (화)' }
+  function splitDate(t) {
+    const m = String(t || '').match(/^(\d{4}년)\s*(.+)$/);
+    return m ? { year: m[1], md: m[2] } : { year: '', md: String(t || '') };
+  }
+
   function extraText(r) {
     if (r.type === '학부모') return r.grade + '학년 ' + r.cls + '반 ' + r.student + ' 학부모';
     return r.org || '';
@@ -355,7 +363,9 @@
     const color = DAY_COLORS[new Date().getDay()];
     $('passHead').style.background = color;
     $('pType').style.background = color;
-    $('pDate').textContent = r.dateText;
+    const dp = splitDate(r.dateText);
+    $('pYear').textContent = dp.year;
+    $('pMD').textContent = dp.md;
     $('pNo').textContent = r.id;
     $('pName').textContent = r.name;
     $('pType').textContent = r.type;
@@ -409,7 +419,7 @@
 
   // 확인증을 그림(PNG)으로 그리기
   function drawPass(r) {
-    const W = 720, H = 1180;
+    const W = 720, H = 1280;
     const c = document.createElement('canvas');
     c.width = W; c.height = H;
     const ctx = c.getContext('2d');
@@ -419,23 +429,30 @@
     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
 
     // 머리 부분
-    ctx.fillStyle = color; ctx.fillRect(0, 0, W, 230);
+    ctx.fillStyle = color; ctx.fillRect(0, 0, W, 330);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#ffffff';
     ctx.font = '600 28px ' + FONT; ctx.fillText(school, W / 2, 58);
     ctx.font = '900 60px ' + FONT; ctx.fillText('방문 확인증', W / 2, 125);
-    ctx.font = '700 30px ' + FONT; ctx.fillText(r.dateText, W / 2, 192);
+    // 날짜: 노란 상자에 크게
+    const dp = splitDate(r.dateText);
+    ctx.font = '900 64px ' + FONT;
+    const dw = Math.max(ctx.measureText(dp.md).width, 300) + 80;
+    ctx.fillStyle = '#ffe14d'; roundRect(ctx, (W - dw) / 2, 170, dw, 136, 24); ctx.fill();
+    ctx.fillStyle = '#1d2433';
+    ctx.font = '700 26px ' + FONT; ctx.fillText(dp.year, W / 2, 202);
+    ctx.font = '900 64px ' + FONT; ctx.fillText(dp.md, W / 2, 256);
 
     // 방문번호·이름·유형
     ctx.fillStyle = '#6b7280'; ctx.font = '600 28px ' + FONT;
-    ctx.fillText('방문번호  ' + r.id, W / 2, 290);
+    ctx.fillText('방문번호  ' + r.id, W / 2, 390);
     ctx.fillStyle = '#1d2433'; ctx.font = '900 72px ' + FONT;
-    ctx.fillText(r.name, W / 2, 380);
+    ctx.fillText(r.name, W / 2, 480);
     ctx.font = '800 30px ' + FONT;
     const bw = ctx.measureText(r.type).width + 56;
-    ctx.fillStyle = color; roundRect(ctx, (W - bw) / 2, 440, bw, 60, 30); ctx.fill();
-    ctx.fillStyle = '#ffffff'; ctx.fillText(r.type, W / 2, 471);
+    ctx.fillStyle = color; roundRect(ctx, (W - bw) / 2, 540, bw, 60, 30); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.fillText(r.type, W / 2, 571);
 
-    let y = 560;
+    let y = 660;
     const extra = extraText(r);
     if (extra) {
       ctx.fillStyle = '#1d2433'; ctx.font = '700 34px ' + FONT;
