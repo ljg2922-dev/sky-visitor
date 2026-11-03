@@ -63,6 +63,17 @@
   .pass-no { display:inline-block; font-size:15px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:4px 14px; }
   .pass-no b { color:var(--text); font-size:17px; }
   .pass-name { font-size:34px; font-weight:900; margin:14px 0 6px; }
+  /* 방문증(패찰) 번호 */
+  .pass-badge { display:inline-flex; align-items:center; gap:10px; margin-top:14px; padding:6px 20px 6px 6px; border:3px solid var(--text); border-radius:999px; font-size:22px; font-weight:900; }
+  .pass-badge .num { display:inline-flex; align-items:center; justify-content:center; min-width:52px; height:52px; padding:0 6px; border-radius:999px; background:var(--text); color:#fff; font-size:30px; font-variant-numeric:tabular-nums; }
+  .badges { display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; }
+  .badges label { position:relative; cursor:pointer; }
+  .badges input { position:absolute; opacity:0; }
+  .badges span { display:flex; align-items:center; justify-content:center; height:46px; border:1px solid var(--line); border-radius:10px; font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .badges input:checked + span { border:2px solid var(--main); background:var(--main); color:#fff; }
+  .badges input:focus-visible + span { outline:2px solid var(--main); outline-offset:2px; }
+  .f-hint { margin:-2px 0 8px; font-size:13px; color:var(--muted); }
+  .done .return { margin:14px 0 0; padding:10px 12px; border-radius:12px; background:#fff6d6; font-size:16px; font-weight:800; color:var(--text); word-break:keep-all; }
   .badge { display:inline-block; padding:6px 14px; border-radius:999px; font-weight:800; font-size:15px; color:#fff; }
   .pass-extra { font-size:18px; font-weight:700; margin-top:10px; }
   .pass dl { display:grid; grid-template-columns:auto 1fr; gap:8px 14px; text-align:left; margin:18px 0 0; padding:14px 16px; background:#f7f9fc; border-radius:12px; font-size:16px; }
@@ -103,6 +114,10 @@
 
     <!-- 입실 -->
     <form id="formIn" class="card" onsubmit="submitIn(event)">
+      <span class="f">방문증 번호</span>
+      <p class="f-hint">목에 건 방문증에 적힌 번호를 눌러 주세요.</p>
+      <div class="badges" id="badges"></div>
+
       <span class="f">방문자 유형</span>
       <div class="types" id="types">
       </div>
@@ -179,6 +194,7 @@
     </div>
     <div class="pass-body">
       <div class="pass-no">방문번호 <b id="pNo"></b></div>
+      <div><div class="pass-badge">방문증 <span class="num" id="pBadge"></span>번</div></div>
       <div class="pass-name" id="pName"></div>
       <div class="badge" id="pType"></div>
       <div class="pass-extra" id="pExtra"></div>
@@ -213,6 +229,7 @@
     <div class="title">퇴실 등록 완료</div>
     <div class="time" id="doneTime"></div>
     <p class="note">방문해 주셔서 감사합니다. 안녕히 가세요.</p>
+    <p class="return hidden" id="doneReturn"></p>
     <p class="pass-hint">👮 이 화면을 배움터지킴이 선생님께 보여 주세요.</p>
     <button class="submit" onclick="resetAll()">처음으로</button>
   </div>
@@ -258,6 +275,7 @@
       for (let i = 1; i <= 6; i++) $('grade').add(new Option(i + '학년', i));
       if (Array.isArray(cfg.classCounts) && cfg.classCounts.length === 6) CLASS_COUNTS = cfg.classCounts;
       fillClasses();
+      buildBadges(cfg.badgeCount || 20);
       $('loading').classList.add('hidden');
       $('main').classList.remove('hidden');
       refreshReopen();
@@ -288,6 +306,24 @@
 
   function selectedType() {
     const r = document.querySelector('input[name=vtype]:checked');
+    return r ? r.value : '';
+  }
+
+  // ---------- 방문증 번호 버튼 ----------
+  function buildBadges(n) {
+    const box = $('badges');
+    box.innerHTML = '';
+    for (let i = 1; i <= n; i++) {
+      const lb = document.createElement('label');
+      const ip = document.createElement('input');
+      ip.type = 'radio'; ip.name = 'badge'; ip.value = i;
+      ip.setAttribute('aria-label', '방문증 ' + i + '번');
+      const sp = document.createElement('span'); sp.textContent = i;
+      lb.append(ip, sp); box.appendChild(lb);
+    }
+  }
+  function selectedBadge() {
+    const r = document.querySelector('input[name=badge]:checked');
     return r ? r.value : '';
   }
 
@@ -336,6 +372,8 @@
     const purpose = $('purpose').value === '기타' ? $('purposeEtc').value.trim() : $('purpose').value;
 
     // 화면에서 먼저 빠진 항목 안내 (서버에서도 한 번 더 검사함)
+    const badge = selectedBadge();
+    if (!badge) return msg.textContent = '방문증 번호를 선택해 주세요.';
     if (!type) return msg.textContent = '방문자 유형을 선택해 주세요.';
     if (type === '학부모' && (!$('grade').value || !$('cls').value || !$('student').value.trim()))
       return msg.textContent = '자녀(학생)의 학년, 반, 이름을 입력해 주세요.';
@@ -350,7 +388,7 @@
     api('checkIn', {
         type: type, name: $('name').value, phone: $('phone').value, purpose: purpose,
         grade: $('grade').value, cls: $('cls').value, student: $('student').value,
-        org: $('org').value, consent: true
+        org: $('org').value, badge: badge, consent: true
       })
       .then(r => { store(PASS_KEY, r); showPass(r); })
       .catch(err => fail('msgIn', 'btnIn', '입실 등록', err));
@@ -384,6 +422,7 @@
     $('pYear').textContent = dp.year;
     $('pMD').textContent = dp.md;
     $('pNo').textContent = r.id;
+    $('pBadge').textContent = r.badge || '-';
     $('pName').textContent = r.name;
     $('pType').textContent = r.type;
     $('pExtra').textContent = extraText(r);
@@ -436,7 +475,7 @@
 
   // 확인증을 그림(PNG)으로 그리기
   function drawPass(r) {
-    const W = 720, H = 1280;
+    const W = 720, H = 1380;
     const c = document.createElement('canvas');
     c.width = W; c.height = H;
     const ctx = c.getContext('2d');
@@ -462,14 +501,32 @@
     // 방문번호·이름·유형
     ctx.fillStyle = '#6b7280'; ctx.font = '600 28px ' + FONT;
     ctx.fillText('방문번호  ' + r.id, W / 2, 390);
+    // 방문증 번호: [방문증 (12) 번]
+    if (r.badge) {
+      ctx.font = '900 40px ' + FONT;
+      const label = '방문증', unit = '번', num = String(r.badge);
+      const lw = ctx.measureText(label).width, uw = ctx.measureText(unit).width;
+      const cd = 76, gap = 14, ph = cd + 16;
+      const pw = 30 + lw + gap + cd + gap + uw + 30;
+      const px = (W - pw) / 2, py = 425, cy = py + ph / 2;
+      ctx.lineWidth = 5; ctx.strokeStyle = '#1d2433';
+      roundRect(ctx, px, py, pw, ph, ph / 2); ctx.stroke();
+      ctx.textAlign = 'left'; ctx.fillStyle = '#1d2433';
+      ctx.fillText(label, px + 30, cy + 2);
+      const cx = px + 30 + lw + gap + cd / 2;
+      ctx.beginPath(); ctx.arc(cx, cy, cd / 2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillText(unit, px + 30 + lw + gap + cd + gap, cy + 2);
+      ctx.textAlign = 'center'; ctx.fillStyle = '#ffffff'; ctx.font = '900 44px ' + FONT;
+      ctx.fillText(num, cx, cy + 2);
+    }
     ctx.fillStyle = '#1d2433'; ctx.font = '900 72px ' + FONT;
-    ctx.fillText(r.name, W / 2, 480);
+    ctx.fillText(r.name, W / 2, 592);
     ctx.font = '800 30px ' + FONT;
     const bw = ctx.measureText(r.type).width + 56;
-    ctx.fillStyle = color; roundRect(ctx, (W - bw) / 2, 540, bw, 60, 30); ctx.fill();
-    ctx.fillStyle = '#ffffff'; ctx.fillText(r.type, W / 2, 571);
+    ctx.fillStyle = color; roundRect(ctx, (W - bw) / 2, 640, bw, 60, 30); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.fillText(r.type, W / 2, 671);
 
-    let y = 660;
+    let y = 760;
     const extra = extraText(r);
     if (extra) {
       ctx.fillStyle = '#1d2433'; ctx.font = '700 34px ' + FONT;
@@ -555,6 +612,8 @@
       .then(r => {
         store(PASS_KEY, null);
         $('doneTime').textContent = r.name + '님 · 퇴실 ' + r.time;
+        $('doneReturn').textContent = r.badge ? '🔖 ' + r.badge + '번 방문증을 배움터지킴이 선생님께 반납해 주세요.' : '';
+        $('doneReturn').classList.toggle('hidden', !r.badge);
         $('main').classList.add('hidden');
         $('done').classList.remove('hidden');
         toTop($('done'));
