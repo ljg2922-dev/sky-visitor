@@ -66,7 +66,8 @@
   /* 방문증(패찰) 번호 */
   .pass-badge { display:inline-flex; align-items:center; gap:10px; margin-top:14px; padding:6px 20px 6px 6px; border:3px solid var(--text); border-radius:999px; font-size:22px; font-weight:900; }
   .pass-badge .num { display:inline-flex; align-items:center; justify-content:center; min-width:52px; height:52px; padding:0 6px; border-radius:999px; background:var(--text); color:#fff; font-size:30px; font-variant-numeric:tabular-nums; }
-  .badges { display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; }
+  .badge-select { font-size:20px !important; font-weight:800; text-align:center; text-align-last:center; height:56px; }
+  .badge-select:invalid, .badge-select.empty { color:var(--muted); font-weight:600; }
   .badges label { position:relative; cursor:pointer; }
   .badges input { position:absolute; opacity:0; }
   .badges span { display:flex; align-items:center; justify-content:center; height:46px; border:1px solid var(--line); border-radius:10px; font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; }
@@ -115,8 +116,10 @@
     <!-- 입실 -->
     <form id="formIn" class="card" onsubmit="submitIn(event)">
       <span class="f">방문증 번호</span>
-      <p class="f-hint">목에 건 방문증에 적힌 번호를 눌러 주세요.</p>
-      <div class="badges" id="badges"></div>
+      <p class="f-hint">목에 건 방문증에 적힌 번호를 골라 주세요.</p>
+      <select id="badge" class="badge-select" aria-label="방문증 번호">
+        <option value="">번호 선택</option>
+      </select>
 
       <span class="f">방문자 유형</span>
       <div class="types" id="types">
@@ -237,7 +240,7 @@
 
 <script>
   // ===== 여기에 Apps Script 웹앱 주소(/exec로 끝나는 주소)를 넣으세요 =====
-  const API_URL = 'https://script.google.com/macros/s/AKfycbytEVUqyFhh8JW0J6PWOpn7NU3UbCASPDcvUn4RjCf4pVGPSW07tUXAAK15kVe8Qcm8/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbyjjONYh5WM1rEGql5DbJKtRA4qapNCgm_OOgOBJZBTbsLLU2smdaKj5tCPnyZzjZ3L/exec';
   // =====================================================================
 
   const $ = id => document.getElementById(id);
@@ -275,7 +278,7 @@
       for (let i = 1; i <= 6; i++) $('grade').add(new Option(i + '학년', i));
       if (Array.isArray(cfg.classCounts) && cfg.classCounts.length === 6) CLASS_COUNTS = cfg.classCounts;
       fillClasses();
-      buildBadges(cfg.badgeCount || 20);
+      buildBadges(cfg.badgeCount || 30);
       $('loading').classList.add('hidden');
       $('main').classList.remove('hidden');
       refreshReopen();
@@ -311,21 +314,14 @@
 
   // ---------- 방문증 번호 버튼 ----------
   function buildBadges(n) {
-    const box = $('badges');
-    box.innerHTML = '';
-    for (let i = 1; i <= n; i++) {
-      const lb = document.createElement('label');
-      const ip = document.createElement('input');
-      ip.type = 'radio'; ip.name = 'badge'; ip.value = i;
-      ip.setAttribute('aria-label', '방문증 ' + i + '번');
-      const sp = document.createElement('span'); sp.textContent = i;
-      lb.append(ip, sp); box.appendChild(lb);
-    }
+    const sel = $('badge');
+    sel.length = 1; // '번호 선택' 안내만 남김
+    for (let i = 1; i <= n; i++) sel.add(new Option(i + '번', i));
+    markBadge();
   }
-  function selectedBadge() {
-    const r = document.querySelector('input[name=badge]:checked');
-    return r ? r.value : '';
-  }
+  function markBadge() { $('badge').classList.toggle('empty', !$('badge').value); }
+  $('badge').addEventListener('change', markBadge);
+  function selectedBadge() { return $('badge').value; }
 
   // ---------- 학년별 반 목록 ----------
   function fillClasses() {
@@ -631,7 +627,7 @@
     clearInterval(clockTimer);
     closeSave();
     $('formIn').reset(); $('formOut').reset();
-    toggleTypeBoxes(); toggleEtc(); fillClasses();
+    toggleTypeBoxes(); toggleEtc(); fillClasses(); markBadge();
     $('btnIn').disabled = false; $('btnIn').textContent = '입실 등록';
     $('btnOut').disabled = false; $('btnOut').textContent = '퇴실 등록';
     $('msgIn').textContent = ''; $('msgOut').textContent = '';
