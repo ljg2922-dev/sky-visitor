@@ -43,6 +43,7 @@
   .msg { color:var(--err); font-size:14px; margin-top:12px; min-height:20px; }
   .hidden { display:none !important; }
   .loading { text-align:center; color:var(--muted); padding:60px 20px; font-size:16px; }
+  .diag, .loading .diag { margin:0 0 14px; font-size:13px; line-height:1.6; color:#b3261e; background:#fdecea; border-radius:10px; padding:10px 12px; text-align:left; word-break:keep-all; }
 
   /* 퇴실 완료 */
   .done { text-align:center; padding:32px 20px; }
@@ -105,6 +106,8 @@
   <div id="main" class="hidden">
     <h1>인천하늘초등학교</h1>
     <p class="sub">방문객 출입기록 · 학생 안전을 위해 협조 부탁드립니다.</p>
+
+    <p class="diag hidden" id="oldServer">관리자 확인용: [7] Apps Script가 예전 버전이라 방문증 번호가 저장되지 않아요. 최신 Code.gs를 붙여넣고 [배포 관리 → 새 버전]으로 배포해 주세요.</p>
 
     <button class="reopen hidden" id="reopen" onclick="reopenPass()">🎫 오늘 받은 방문 확인증 다시 보기</button>
 
@@ -262,10 +265,7 @@
   // 학교 설정 불러와 화면 채우기
   async function init() {
     try {
-      const res = await fetch(API_URL + '?api=config');
-      const j = await res.json();
-      if (!j.ok) throw new Error(j.error);
-      const cfg = j.result;
+      const cfg = await loadConfig();
       $('retention').textContent = cfg.retentionText || '3년';
       cfg.visitorTypes.forEach(t => {
         const lb = document.createElement('label');
@@ -279,12 +279,42 @@
       if (Array.isArray(cfg.classCounts) && cfg.classCounts.length === 6) CLASS_COUNTS = cfg.classCounts;
       fillClasses();
       buildBadges(cfg.badgeCount || 30);
+      if (!cfg.badgeCount) $('oldServer').classList.remove('hidden'); // 예전 Code.gs: 방문증 번호가 저장되지 않음
       $('loading').classList.add('hidden');
       $('main').classList.remove('hidden');
       refreshReopen();
     } catch (e) {
-      $('loading').textContent = '화면을 불러오지 못했어요. 잠시 후 새로고침해 주세요.';
+      $('loading').innerHTML = '';
+      const p1 = document.createElement('p');
+      p1.textContent = '화면을 불러오지 못했어요. 잠시 후 새로고침해 주세요.';
+      const p2 = document.createElement('p');
+      p2.className = 'diag';
+      p2.textContent = '관리자 확인용: ' + (e && e.message ? e.message : String(e));
+      $('loading').append(p1, p2);
+      console.error(e);
     }
+  }
+
+  // 설정값 불러오기 + 실패 원인을 알기 쉽게 구분
+  async function loadConfig() {
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(API_URL)) {
+      if (API_URL.indexOf('여기에') >= 0) throw new Error('[1] index.html의 API_URL에 Apps Script 주소가 아직 들어가지 않았어요.');
+      throw new Error('[2] API_URL 주소 모양이 올바르지 않아요. https://script.google.com/macros/s/…/exec 형태인지(끝이 /exec, 앞뒤 공백 없음) 확인해 주세요.');
+    }
+    let res;
+    try {
+      res = await fetch(API_URL + '?api=config', { cache: 'no-store' });
+    } catch (err) {
+      throw new Error('[3] Apps Script에 연결하지 못했어요. 배포 액세스 권한이 \'모든 사용자\'인지, 주소가 맞는지 확인해 주세요.');
+    }
+    const text = await res.text();
+    let j;
+    try { j = JSON.parse(text); } catch (err) {
+      throw new Error('[4] Apps Script가 설정값 대신 다른 화면을 보냈어요 (응답 ' + res.status + '). Code.gs를 저장한 뒤 [배포 관리 → 새 버전]으로 다시 배포했는지 확인해 주세요.');
+    }
+    if (!j.ok) throw new Error('[5] Apps Script 오류: ' + j.error);
+    if (!j.result || !Array.isArray(j.result.visitorTypes)) throw new Error('[6] Apps Script 설정값이 비어 있어요. 최신 Code.gs인지 확인해 주세요.');
+    return j.result;
   }
   // 요일별 확인증 색 (일~토). 캡처 화면 재사용을 눈으로 구분하기 위함
   const DAY_COLORS = ['#d93025', '#2f6fde', '#188038', '#e37400', '#8e24aa', '#00838f', '#c2185b'];
